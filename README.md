@@ -1,4 +1,4 @@
-# Domain-Adaptation-Regression
+# Domain Adaptation using NMF
 Code release for Non-negative Subspace Alignment for Domain Adaptation Regression
 
 
