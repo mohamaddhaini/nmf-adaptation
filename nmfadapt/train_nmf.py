@@ -214,7 +214,7 @@ iter_target = iter(dset_loaders["val"])
 for param_group in optimizer.param_groups:
     param_lr.append(param_group["lr"])
 test_interval = 500
-print_interval = 1
+print_interval = 100
 num_iter = 3*len_source
 start=time.time()
 test_init=np.inf
