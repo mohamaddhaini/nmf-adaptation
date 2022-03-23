@@ -31,8 +31,6 @@ args = parser.parse_args()
 
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
-os.environ["CUDA_VISIBLE_DEVICES"] = args.gpu_id
-use_gpu = torch.cuda.is_available()
 
 torch.manual_seed(0)
 np.random.seed(0)
