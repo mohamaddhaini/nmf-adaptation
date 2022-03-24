@@ -27,15 +27,17 @@ parser.add_argument('--print', type=int, default=100,
                     help='print interval')
 parser.add_argument('--test', type=int, default=100,
                     help='test interval')
+parser.add_argument('--lamda', type=float, default=0.00005,
+                    help='nmf loss hyperparameter')
 parser.add_argument('--lr', type=float, default=0.1,
                         help='init learning rate for fine-tune')
 parser.add_argument('--seed', type=int, default=0,
                         help='random seed')
 args = parser.parse_args()
 
+
 torch.manual_seed(args.seed)
 np.random.seed(args.seed)
-
 torch.manual_seed(0)
 np.random.seed(0)
 def set_seed():
@@ -264,7 +266,7 @@ for iter_num in range(1, num_iter + 1):
     # beta = 0.001*(1 + 0.0001 * iter_num) ** (-0.75)
     # print(torch.norm(feature_s,p=2),torch.norm(feature_t,p=2))
     nmf_loss= match_nmf_v3(feature_s,feature_t)
-    total_loss = classifier_loss + 0.00005*nmf_loss
+    total_loss = classifier_loss + args.lamda*nmf_loss
     total_loss.backward()
     # print(Model_R.model_fc.layer4[1].bn2.weight.grad)
     # torch.nn.utils.clip_grad_norm_(Model_R.parameters(), max_norm=3, norm_type=2)
