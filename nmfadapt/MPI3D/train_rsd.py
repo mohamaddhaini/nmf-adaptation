@@ -59,7 +59,7 @@ data_transforms = {
 # set dataset
 batch_size = {"train": 36, "val": 36, "test": 4}
 
-os.chdir('~/labo-litis/dhainmoh/data/mpi3d')
+os.chdir(r'/home/entitees/labo-litis/users/dhainmoh/data/mpi3d')
 
 rc="realistic.txt"
 rl="real.txt"
