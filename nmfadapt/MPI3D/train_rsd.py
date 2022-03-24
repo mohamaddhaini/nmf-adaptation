@@ -297,7 +297,7 @@ for k in range(0,1):
         # if iter_num==num_iter:
         #   torch.save(Model_R.state_dict(), os.path.join('/content/drive/MyDrive/Colab Notebooks/domain adaptation','regressor_epoch_scream'))
         if (iter_num % print_interval) == 0:
-            print("Iter {:05d}, Average Cross Entropy Loss: {:.4f}; Average RSD Loss: {:.4f};  Average Training Loss: {:.4f};  LR:{:.6f}}".format(
+            print("Iter {:05d}, Average Cross Entropy Loss: {:.4f}; Average RSD Loss: {:.4f};  Average Training Loss: {:.4f};  LR:{:.6f}".format(
                 iter_num, train_cross_loss / float(test_interval), train_rsd_loss / float(test_interval),
                 train_total_loss / float(test_interval),optimizer.param_groups[0]['lr']))
             domain_graph.append(train_rsd_loss / float(test_interval))
