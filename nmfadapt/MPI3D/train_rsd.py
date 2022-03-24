@@ -198,8 +198,7 @@ def inv_lr_scheduler(param_lr, optimizer, iter_num, gamma, power, init_lr=0.001,
         param_group['weight_decay'] = weight_decay * 2
         i += 1
     return optimizer
-
-rank=36
+  
 class Model_Regression(nn.Module):
     def __init__(self):
         super(Model_Regression,self).__init__()
@@ -217,107 +216,97 @@ class Model_Regression(nn.Module):
 
 test_graph_rsd=[]
 test_graph_nmf=[]
-for k in range(0,1):
-    set_seed()
-    if k==0:
-        rsd=False
-        name='nmf'
-    else:
-        rsd=True
-        name='rsd'
-    domain_graph=[]
-    regression_graph=[]
-    Model_R = Model_Regression()
-    Model_R = Model_R.to(device)
+set_seed()
+name='nmf'
+domain_graph=[]
+regression_graph=[]
+Model_R = Model_Regression()
+Model_R = Model_R.to(device)
+Model_R.train(True)
+criterion = {"regressor": nn.MSELoss()}
+optimizer_dict = [{"params": filter(lambda p: p.requires_grad, Model_R.model_fc.parameters()), "lr": 0.1},
+                  {"params": filter(lambda p: p.requires_grad, Model_R.classifier_layer.parameters()), "lr": 1}]
+optimizer = optim.SGD(optimizer_dict, lr=0.1, momentum=0.9, weight_decay=0.0005, nesterov=True)
+train_cross_loss = train_rsd_loss = train_total_loss = 0.0
+len_source = len(dset_loaders["train"]) - 1
+len_target = len(dset_loaders["val"]) - 1
+param_lr = []
+iter_source = iter(dset_loaders["train"])
+iter_target = iter(dset_loaders["val"])
 
+
+for param_group in optimizer.param_groups:
+    param_lr.append(param_group["lr"])
+test_interval = 100
+print_interval=1
+num_iter = num_iter = 1*len_source
+test_init=np.inf
+for iter_num in range(1, num_iter + 1):
     Model_R.train(True)
-    criterion = {"regressor": nn.MSELoss()}
-    optimizer_dict = [{"params": filter(lambda p: p.requires_grad, Model_R.model_fc.parameters()), "lr": 0.1},
-                      {"params": filter(lambda p: p.requires_grad, Model_R.classifier_layer.parameters()), "lr": 1}]
-    optimizer = optim.SGD(optimizer_dict, lr=0.1, momentum=0.9, weight_decay=0.0005, nesterov=True)
-    train_cross_loss = train_rsd_loss = train_total_loss = 0.0
-    len_source = len(dset_loaders["train"]) - 1
-    len_target = len(dset_loaders["val"]) - 1
-    param_lr = []
-    iter_source = iter(dset_loaders["train"])
-    iter_target = iter(dset_loaders["val"])
-
-
-    for param_group in optimizer.param_groups:
-        param_lr.append(param_group["lr"])
-    test_interval = 100
-    print_interval=1
-    num_iter = num_iter = 4*len_source
-    test_init=np.inf
-    for iter_num in range(1, num_iter + 1):
-        Model_R.train(True)
-        optimizer = inv_lr_scheduler(param_lr, optimizer , iter_num, gamma=0.0001, power=0.75,init_lr=0.1,weight_decay=0.0005)
-        optimizer.zero_grad()
-        if iter_num % len_source == 0:
-            iter_source = iter(dset_loaders["train"])
-        if iter_num % len_target == 0:
-            iter_target = iter(dset_loaders["val"])
-        data_source = iter_source.next()
-        data_target = iter_target.next()
-        inputs_source, labels_source = data_source
-        labels1 = labels_source[:,0]
-        labels2 = labels_source[:,1]
-        labels1 = labels1.unsqueeze(1)
-        labels2 = labels2.unsqueeze(1)
-        labels_source = torch.cat((labels1,labels2),dim=1)
-        labels_source = labels_source.float()/39
-        inputs_target, labels_target = data_target
-        inputs = torch.cat((inputs_source, inputs_target), dim=0)
-        inputs = inputs.to(device)
-        labels = labels_source.to(device)
-        inputs_s = inputs.narrow(0, 0, batch_size["train"])
-        inputs_t = inputs.narrow(0, batch_size["train"], batch_size["train"])
-        outC_s, feature_s = Model_R(inputs_s)
-        outC_t, feature_t = Model_R(inputs_t)
-        classifier_loss = criterion["regressor"](outC_s, labels)
-        # beta = 0.001*(1 + 0.0001 * iter_num) ** (-0.75)
-        # print(torch.norm(feature_s,p=2),torch.norm(feature_t,p=2))
-        if rsd:
-            rsd_loss = RSD(feature_s,feature_t)
-            total_loss = classifier_loss + 0.001*rsd_loss
-        else:
-            rsd_loss= match_nmf_v3(feature_s,feature_t)
-            total_loss = classifier_loss + 0.00005*rsd_loss
-        total_loss.backward()
-        # print(Model_R.model_fc.layer4[1].bn2.weight.grad)
-        # torch.nn.utils.clip_grad_norm_(Model_R.parameters(), max_norm=3, norm_type=2)
-        # for p in Model_R.parameters():
-        #     p.register_hook(lambda grad: print(torch.norm(grad,p=2)))
-        optimizer.step()
-        train_cross_loss += classifier_loss.item()
-        train_rsd_loss += rsd_loss.item()
-        train_total_loss += total_loss.item()
-        # end_=time.time()
-        # print(end_-start)
-        # if iter_num==num_iter:
-        #   torch.save(Model_R.state_dict(), os.path.join('/content/drive/MyDrive/Colab Notebooks/domain adaptation','regressor_epoch_scream'))
-        if (iter_num % print_interval) == 0:
-            print("Iter {:05d}, Average Cross Entropy Loss: {:.4f}; Average RSD Loss: {:.4f};  Average Training Loss: {:.4f};  LR:{:.6f}".format(
-                iter_num, train_cross_loss / float(test_interval), train_rsd_loss / float(test_interval),
-                train_total_loss / float(test_interval),optimizer.param_groups[0]['lr']))
-            domain_graph.append(train_rsd_loss / float(test_interval))
-            regression_graph.append( train_cross_loss / float(test_interval))
+    optimizer = inv_lr_scheduler(param_lr, optimizer , iter_num, gamma=0.0001, power=0.75,init_lr=0.1,weight_decay=0.0005)
+    optimizer.zero_grad()
+    if iter_num % len_source == 0:
+        iter_source = iter(dset_loaders["train"])
+    if iter_num % len_target == 0:
+        iter_target = iter(dset_loaders["val"])
+    data_source = iter_source.next()
+    data_target = iter_target.next()
+    inputs_source, labels_source = data_source
+    labels1 = labels_source[:,0]
+    labels2 = labels_source[:,1]
+    labels1 = labels1.unsqueeze(1)
+    labels2 = labels2.unsqueeze(1)
+    labels_source = torch.cat((labels1,labels2),dim=1)
+    labels_source = labels_source.float()/39
+    inputs_target, labels_target = data_target
+    inputs = torch.cat((inputs_source, inputs_target), dim=0)
+    inputs = inputs.to(device)
+    labels = labels_source.to(device)
+    inputs_s = inputs.narrow(0, 0, batch_size["train"])
+    inputs_t = inputs.narrow(0, batch_size["train"], batch_size["train"])
+    outC_s, feature_s = Model_R(inputs_s)
+    outC_t, feature_t = Model_R(inputs_t)
+    classifier_loss = criterion["regressor"](outC_s, labels)
+    # beta = 0.001*(1 + 0.0001 * iter_num) ** (-0.75)
+    # print(torch.norm(feature_s,p=2),torch.norm(feature_t,p=2))
+    if rsd:
+        rsd_loss = RSD(feature_s,feature_t)
+        total_loss = classifier_loss + 0.001*rsd_loss
+    else:
+        rsd_loss= match_nmf_v3(feature_s,feature_t)
+        total_loss = classifier_loss + 0.00005*rsd_loss
+    total_loss.backward()
+    # print(Model_R.model_fc.layer4[1].bn2.weight.grad)
+    # torch.nn.utils.clip_grad_norm_(Model_R.parameters(), max_norm=3, norm_type=2)
+    # for p in Model_R.parameters():
+    #     p.register_hook(lambda grad: print(torch.norm(grad,p=2)))
+    optimizer.step()
+    train_cross_loss += classifier_loss.item()
+    train_rsd_loss += rsd_loss.item()
+    train_total_loss += total_loss.item()
+    # end_=time.time()
+    # print(end_-start)
+    # if iter_num==num_iter:
+    #   torch.save(Model_R.state_dict(), os.path.join('/content/drive/MyDrive/Colab Notebooks/domain adaptation','regressor_epoch_scream'))
+    if (iter_num % print_interval) == 0:
+        print("Iter {:05d}, Average Cross Entropy Loss: {:.4f}; Average RSD Loss: {:.4f};  Average Training Loss: {:.4f};  LR:{:.6f}".format(
+            iter_num, train_cross_loss / float(test_interval), train_rsd_loss / float(test_interval),
+            train_total_loss / float(test_interval),optimizer.param_groups[0]['lr']))
+        domain_graph.append(train_rsd_loss / float(test_interval))
+        regression_graph.append( train_cross_loss / float(test_interval))
 #             np.save(os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','domain_loss.npy'),np.array(domain_graph))
 #             np.save(os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','regression_loss.npy'),np.array(regression_graph))
-            train_cross_loss = train_rsd_loss = train_total_loss  = 0.0
-            # beta=beta*0.9
-        if (iter_num % test_interval) == 0:
-            Model_R.eval()
-            test_loss=Regression_test(dset_loaders, Model_R.predict_layer)
-            if test_loss<test_init:
-                test_init=test_loss
-                print('Saving')
+        train_cross_loss = train_rsd_loss = train_total_loss  = 0.0
+        # beta=beta*0.9
+    if (iter_num % test_interval) == 0:
+        Model_R.eval()
+        test_loss=Regression_test(dset_loaders, Model_R.predict_layer)
+        if test_loss<test_init:
+            test_init=test_loss
+            print('Saving')
 #                 torch.save(Model_R.state_dict(), os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','nmf2'))
 #                 torch.save(optimizer.state_dict(),os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','optimizer2'))
 #                 np.save(os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','iter2.npy'),np.array(iter_num))
-            if rsd:
-                test_graph_rsd.append(test_loss)
-            else:
-                test_graph_nmf.append(test_loss)
-                test_=[s.item() for s in test_graph_nmf]
+        test_graph_nmf.append(test_loss)
+        test_=[s.item() for s in test_graph_nmf]
 #                 np.save(os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','test_loss.npy'),np.array(test_))
