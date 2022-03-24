@@ -320,4 +320,4 @@ for k in range(0,1):
             else:
                 test_graph_nmf.append(test_loss)
                 test_=[s.item() for s in test_graph_nmf]
-                np.save(os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','test_loss.npy'),np.array(test_))
+#                 np.save(os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','test_loss.npy'),np.array(test_))
