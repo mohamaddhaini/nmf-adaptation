@@ -140,33 +140,6 @@ def nmf_mu(Y,rank,mu,lamda,iterations,M1=None):
         loss.append(torch.norm(res,p=2).detach().cpu())
     return np.array(loss),res,M,A,M.data
 
-def nmf_mu_res(Y,rank,mu,lamda,iterations,M1=None):
-    with torch.no_grad():
-      features=Y.shape[1]
-      batch=Y.shape[0]
-      if M1 is None:
-        M1, A1 = _initialize_nmf(Y.data.cpu().numpy(), rank, init='random')
-        M=torch.from_numpy(M1).cuda()
-        A=torch.from_numpy(A1).cuda()
-      else:
-        _, A1 = _initialize_nmf(Y.data.cpu().numpy(), rank, init='random')
-        M=torch.nn.Parameter(M1).cuda()
-        A=torch.from_numpy(A1).cuda()
-      loss=[]
-      for i in range(0,iterations):
-          M = M*torch.sqrt((Y.mm(Y.T.mm(M)))/(torch.matmul((M.mm(M.T.mm(Y))),Y.T.mm(M))+mu*M))
-          M[M < 1e-16] = 1e-16
-          res=Y-torch.matmul(M,M.T.mm(Y))
-          loss.append(torch.norm(res,p=2).detach().cpu())
-    for i in range(0,100):
-          M = M*torch.sqrt((Y.mm(Y.T.mm(M)))/(torch.matmul((M.mm(M.T.mm(Y))),Y.T.mm(M))+mu*M))
-          M[M < 1e-16] = 1e-16
-          res=Y-torch.matmul(M,M.T.mm(Y))
-          loss.append(torch.norm(res,p=2).detach().cpu())
-    return np.array(loss),res,M,M,M
-
-
-
 def match_nmf_v3(Feature_s, Feature_t):
     _,res1,b_s,A_s,R_s=nmf_mu(Feature_s.T,18,0,0,100)
     loss,res2,b_t,A_t,R_t=nmf_mu(Feature_t.T,18,0,0,100)
@@ -273,7 +246,7 @@ for k in range(0,1):
     for param_group in optimizer.param_groups:
         param_lr.append(param_group["lr"])
     test_interval = 100
-    print_interval=100
+    print_interval=1
     num_iter = num_iter = 4*len_source
     test_init=np.inf
     for iter_num in range(1, num_iter + 1):
@@ -329,8 +302,8 @@ for k in range(0,1):
                 train_total_loss / float(test_interval),optimizer.param_groups[0]['lr']))
             domain_graph.append(train_rsd_loss / float(test_interval))
             regression_graph.append( train_cross_loss / float(test_interval))
-            np.save(os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','domain_loss.npy'),np.array(domain_graph))
-            np.save(os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','regression_loss.npy'),np.array(regression_graph))
+#             np.save(os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','domain_loss.npy'),np.array(domain_graph))
+#             np.save(os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','regression_loss.npy'),np.array(regression_graph))
             train_cross_loss = train_rsd_loss = train_total_loss  = 0.0
             # beta=beta*0.9
         if (iter_num % test_interval) == 0:
@@ -339,9 +312,9 @@ for k in range(0,1):
             if test_loss<test_init:
                 test_init=test_loss
                 print('Saving')
-                torch.save(Model_R.state_dict(), os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','nmf2'))
-                torch.save(optimizer.state_dict(),os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','optimizer2'))
-                np.save(os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','iter2.npy'),np.array(iter_num))
+#                 torch.save(Model_R.state_dict(), os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','nmf2'))
+#                 torch.save(optimizer.state_dict(),os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','optimizer2'))
+#                 np.save(os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','iter2.npy'),np.array(iter_num))
             if rsd:
                 test_graph_rsd.append(test_loss)
             else:
