@@ -183,13 +183,6 @@ def Regression_test(loader, model):
     print("\tMAEall : {0}\n".format(MAE[2]))
     return MAE[2]
 
-def RSD(Feature_s, Feature_t):
-    u_s, s_s, v_s = torch.svd(Feature_s.t())
-    u_t, s_t, v_t = torch.svd(Feature_t.t())
-    p_s, cospa, p_t = torch.svd(torch.mm(u_s.t(), u_t))
-    sinpa = torch.sqrt(1-torch.pow(cospa,2))
-    return torch.norm(sinpa,1)+0.1*torch.norm(torch.abs(p_s) - torch.abs(p_t), 2)
-
 def inv_lr_scheduler(param_lr, optimizer, iter_num, gamma, power, init_lr=0.001, weight_decay=0.0005):
     lr = init_lr * (1 + gamma * iter_num) ** (-power)
     i = 0
@@ -214,7 +207,6 @@ class Model_Regression(nn.Module):
         return(outC,feature)
 
 
-test_graph_rsd=[]
 test_graph_nmf=[]
 set_seed()
 name='nmf'
@@ -227,14 +219,12 @@ criterion = {"regressor": nn.MSELoss()}
 optimizer_dict = [{"params": filter(lambda p: p.requires_grad, Model_R.model_fc.parameters()), "lr": 0.1},
                   {"params": filter(lambda p: p.requires_grad, Model_R.classifier_layer.parameters()), "lr": 1}]
 optimizer = optim.SGD(optimizer_dict, lr=0.1, momentum=0.9, weight_decay=0.0005, nesterov=True)
-train_cross_loss = train_rsd_loss = train_total_loss = 0.0
+train_cross_loss = train_nmf_loss = train_total_loss = 0.0
 len_source = len(dset_loaders["train"]) - 1
 len_target = len(dset_loaders["val"]) - 1
 param_lr = []
 iter_source = iter(dset_loaders["train"])
 iter_target = iter(dset_loaders["val"])
-
-
 for param_group in optimizer.param_groups:
     param_lr.append(param_group["lr"])
 test_interval = 100
@@ -269,12 +259,8 @@ for iter_num in range(1, num_iter + 1):
     classifier_loss = criterion["regressor"](outC_s, labels)
     # beta = 0.001*(1 + 0.0001 * iter_num) ** (-0.75)
     # print(torch.norm(feature_s,p=2),torch.norm(feature_t,p=2))
-    if rsd:
-        rsd_loss = RSD(feature_s,feature_t)
-        total_loss = classifier_loss + 0.001*rsd_loss
-    else:
-        rsd_loss= match_nmf_v3(feature_s,feature_t)
-        total_loss = classifier_loss + 0.00005*rsd_loss
+    nmf_loss= match_nmf_v3(feature_s,feature_t)
+    total_loss = classifier_loss + 0.00005*nmf_loss
     total_loss.backward()
     # print(Model_R.model_fc.layer4[1].bn2.weight.grad)
     # torch.nn.utils.clip_grad_norm_(Model_R.parameters(), max_norm=3, norm_type=2)
@@ -282,21 +268,21 @@ for iter_num in range(1, num_iter + 1):
     #     p.register_hook(lambda grad: print(torch.norm(grad,p=2)))
     optimizer.step()
     train_cross_loss += classifier_loss.item()
-    train_rsd_loss += rsd_loss.item()
+    train_nmf_loss += nmf_loss.item()
     train_total_loss += total_loss.item()
     # end_=time.time()
     # print(end_-start)
     # if iter_num==num_iter:
     #   torch.save(Model_R.state_dict(), os.path.join('/content/drive/MyDrive/Colab Notebooks/domain adaptation','regressor_epoch_scream'))
     if (iter_num % print_interval) == 0:
-        print("Iter {:05d}, Average Cross Entropy Loss: {:.4f}; Average RSD Loss: {:.4f};  Average Training Loss: {:.4f};  LR:{:.6f}".format(
-            iter_num, train_cross_loss / float(test_interval), train_rsd_loss / float(test_interval),
+        print("Iter {:05d}, Average Cross Entropy Loss: {:.4f}; Average NMF Loss: {:.4f};  Average Training Loss: {:.4f};  LR:{:.6f}".format(
+            iter_num, train_cross_loss / float(test_interval), train_nmf_loss / float(test_interval),
             train_total_loss / float(test_interval),optimizer.param_groups[0]['lr']))
-        domain_graph.append(train_rsd_loss / float(test_interval))
+        domain_graph.append(train_nmf_loss / float(test_interval))
         regression_graph.append( train_cross_loss / float(test_interval))
 #             np.save(os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','domain_loss.npy'),np.array(domain_graph))
 #             np.save(os.path.join('/content/drive/MyDrive/Colab Notebooks/nmf domain adaptation','regression_loss.npy'),np.array(regression_graph))
-        train_cross_loss = train_rsd_loss = train_total_loss  = 0.0
+        train_cross_loss = train_nmf_loss = train_total_loss  = 0.0
         # beta=beta*0.9
     if (iter_num % test_interval) == 0:
         Model_R.eval()
