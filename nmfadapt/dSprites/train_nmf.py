@@ -192,7 +192,6 @@ list2=[]
 path=r'path_to_save_results'
 
 set_seed()
-rsd=False
 name='nmf'
 loss_graph=[]
 A1=torch.nn.Parameter(torch.rand(36,36))
@@ -204,7 +203,7 @@ criterion = {"regressor": nn.MSELoss()}
 optimizer_dict = [{"params": filter(lambda p: p.requires_grad, Model_R.model_fc.parameters()), "lr": 0.1},
                   {"params": filter(lambda p: p.requires_grad, Model_R.classifier_layer.parameters()), "lr": 1},{'params':A1,'lr':1},{'params':A2,'lr':1}]
 optimizer = optim.SGD(optimizer_dict,lr=0.1, momentum=0.9, weight_decay=0.0005, nesterov=True)
-train_cross_loss = train_rsd_loss = train_total_loss = 0.0
+train_cross_loss = train_nmf_loss = train_total_loss = 0.0
 len_source = len(dset_loaders["train"]) - 1
 print(len_source)
 len_target = len(dset_loaders["val"]) - 1
@@ -248,23 +247,20 @@ for iter_num in range(1, num_iter + 1):
     outC_s, feature_s = Model_R(inputs_s)
     outC_t, feature_t = Model_R(inputs_t)
     classifier_loss = criterion["regressor"](outC_s, labels)
-    rsd_loss= match_nmf(feature_s,feature_t)
-    total_loss = classifier_loss + 0.001*rsd_loss
+    nmf_loss= match_nmf(feature_s,feature_t)
+    total_loss = classifier_loss + 0.001*nmf_loss
     total_loss.backward()
     optimizer.step()
     train_cross_loss += classifier_loss.item()
-    train_rsd_loss += rsd_loss.item()
+    train_nmf_loss += nmf_loss.item()
     train_total_loss += total_loss.item()
-    if rsd:
-        list1.append(time.time()-start)
-    else:
-        list2.append(time.time()-start)
+    list2.append(time.time()-start)
     if (iter_num % print_interval) == 0:
-        print("Iter {:05d}, Average Cross Entropy Loss: {:.4f}; Average RSD Loss: {:.4f};  Average Training Loss: {:.4f};LR:{:.6f}".format(
-            iter_num, train_cross_loss / float(test_interval), train_rsd_loss / float(test_interval),
+        print("Iter {:05d}, Average Cross Entropy Loss: {:.4f}; Average NMF Loss: {:.4f};  Average Training Loss: {:.4f};LR:{:.6f}".format(
+            iter_num, train_cross_loss / float(test_interval), train_nmf_loss / float(test_interval),
             train_total_loss / float(test_interval),optimizer.param_groups[0]['lr']))
-        loss_graph.append(train_rsd_loss / float(test_interval))
-        train_cross_loss = train_rsd_loss = train_total_loss  = 0.0
+        loss_graph.append(train_nmf_loss / float(test_interval))
+        train_cross_loss = train_nmf_loss = train_total_loss  = 0.0
     if (iter_num % test_interval) == 0:
         Model_R.eval()
         test_loss=Regression_test(dset_loaders, Model_R.predict_layer)
