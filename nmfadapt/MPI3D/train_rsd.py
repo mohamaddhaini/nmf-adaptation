@@ -23,6 +23,10 @@ parser.add_argument('--src', type=str, default='rc', metavar='S',
                     help='source dataset')
 parser.add_argument('--tgt', type=str, default='t', metavar='S',
                     help='target dataset')
+parser.add_argument('--print', type=int, default=100,
+                    help='print interval')
+parser.add_argument('--test', type=int, default=100,
+                    help='test interval')
 parser.add_argument('--lr', type=float, default=0.1,
                         help='init learning rate for fine-tune')
 parser.add_argument('--seed', type=int, default=0,
@@ -227,8 +231,8 @@ iter_source = iter(dset_loaders["train"])
 iter_target = iter(dset_loaders["val"])
 for param_group in optimizer.param_groups:
     param_lr.append(param_group["lr"])
-test_interval = 100
-print_interval=1
+test_interval = args.test
+print_interval=args.print
 num_iter = num_iter = 1*len_source
 test_init=np.inf
 for iter_num in range(1, num_iter + 1):
