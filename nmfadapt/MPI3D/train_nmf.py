@@ -14,6 +14,7 @@ torch.set_num_threads(1)
 import matplotlib.pyplot as plt 
 import random
 from read_data import ImageList_r as ImageList
+from torch.utils.tensorboard import SummaryWriter
 
 torch.backends.cudnn.deterministic = True
 torch.backends.cudnn.benchmark = False
@@ -237,6 +238,7 @@ test_interval = args.test
 print_interval=args.print
 num_iter = num_iter = 1*len_source
 test_init=np.inf
+writer = SummaryWriter(log_dir=os.path.join(r'/home/scr/person/invite/dhainmoh/labo-litis/dhainmoh/scripts/nmf-adapt',args.src+args.tgt))
 for iter_num in range(1, num_iter + 1):
     Model_R.train(True)
     optimizer = inv_lr_scheduler(param_lr, optimizer , iter_num, gamma=0.0001, power=0.75,init_lr=0.1,weight_decay=0.0005)
@@ -297,6 +299,7 @@ for iter_num in range(1, num_iter + 1):
     if (iter_num % test_interval) == 0:
         Model_R.eval()
         test_loss=Regression_test(dset_loaders, Model_R.predict_layer)
+        writer.add_scalar("Loss/Test Loss", test_loss , iter_num)
         if test_loss<test_init:
             test_init=test_loss
             print('Saving')
