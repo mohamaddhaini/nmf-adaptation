@@ -239,12 +239,12 @@ for iter_num in range(1, num_iter + 1):
     classifier_loss = criterion["regressor"](outC_s, labels)
     # beta = 0.001*(1 + 0.0001 * iter_num) ** (-0.75)
     # print(torch.norm(feature_s,p=2),torch.norm(feature_t,p=2))
-    if iter_num<3000:
-      total_loss = classifier_loss
-    else:
-      nmf_loss= match_nmf_v5(feature_s,feature_t)
-      total_loss = classifier_loss + args.lamda*nmf_loss
-      train_nmf_loss += nmf_loss.item()
+#     if iter_num<3000:
+#       total_loss = classifier_loss
+#     else:
+    nmf_loss= match_nmf_v5(feature_s,feature_t)
+    total_loss = classifier_loss + args.lamda*nmf_loss
+    train_nmf_loss += nmf_loss.item()
     total_loss.backward()
     # print(Model_R.model_fc.layer4[1].bn2.weight.grad)
     # torch.nn.utils.clip_grad_norm_(Model_R.parameters(), max_norm=3, norm_type=2)
