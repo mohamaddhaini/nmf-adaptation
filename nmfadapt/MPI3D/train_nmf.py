@@ -7,7 +7,7 @@ import numpy as np
 import torch.nn as nn
 from torch.autograd import Variable
 import model
-import loss
+import loss as ls
 import transform as tran
 import argparse
 import time
@@ -113,19 +113,19 @@ dset_sizes = {x: len(dsets[x]) for x in ['train', 'val','test']}
 # device = torch.device('cuda')
 
 def match_nmf_v3(Feature_s, Feature_t):
-    _,res1,b_s,A_s,R_s=loss.nmf_mu(Feature_s.T,18,0,0,100)
-    loss,res2,b_t,A_t,R_t=loss.nmf_mu(Feature_t.T,18,0,0,100)
+    _,res1,b_s,A_s,R_s=ls.nmf_mu(Feature_s.T,18,0,0,100)
+    loss,res2,b_t,A_t,R_t=ls.nmf_mu(Feature_t.T,18,0,0,100)
     # print(torch.norm(b_s,p=2))
     # plt.plot(loss)
-    res_s,_,aa,_=loss.sparse(b_s,b_t,0,0,100)
-    res_t,_,_,loss=loss.sparse(b_t,b_s,0,0,100)
+    res_s,_,aa,_=ls.sparse(b_s,b_t,0,0,100)
+    res_t,_,_,loss=ls.sparse(b_t,b_s,0,0,100)
     # plt.plot(loss)
     # print(aa)
     return torch.norm(res_s,p='fro')+torch.norm(res_t,p='fro')
   
 def match_nmf_v5(Feature_s, Feature_t):
-  b_s,A_s,error_s,loss_s=loss.dictionary_learning(50,Feature_s.t(),rank=18,lambda_sp=0.9,lambda_reg=1,lamda = 0.1)
-  coeffs1,loss= loss.ista(Feature_t,b_s,alpha=0.4,maxiter=50)
+  b_s,A_s,error_s,loss_s=ls.dictionary_learning(50,Feature_s.t(),rank=18,lambda_sp=0.9,lambda_reg=1,lamda = 0.1)
+  coeffs1,loss= ls.ista(Feature_t,b_s,alpha=0.4,maxiter=50)
   # plt.plot(loss)
   res_s=Feature_t.T-b_s.mm(coeffs1.T)
   delta=res_s.mm(coeffs1.mm(torch.linalg.pinv(args.lam_delta*torch.ones(18,18).cuda()+coeffs1.T.mm(coeffs1))))
