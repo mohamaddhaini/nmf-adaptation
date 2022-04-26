@@ -242,7 +242,7 @@ for iter_num in range(1, num_iter + 1):
     if iter_num<3000:
       total_loss = classifier_loss
     else:
-      nmf_loss= match_nmf_v3(feature_s,feature_t)
+      nmf_loss= match_nmf_v5(feature_s,feature_t)
       total_loss = classifier_loss + args.lamda*nmf_loss
       train_nmf_loss += nmf_loss.item()
     total_loss.backward()
