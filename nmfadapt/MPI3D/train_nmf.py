@@ -7,6 +7,7 @@ import numpy as np
 import torch.nn as nn
 from torch.autograd import Variable
 import model
+import loss
 import transform as tran
 import argparse
 import time
@@ -34,6 +35,8 @@ parser.add_argument('--lr', type=float, default=0.1,
                         help='init learning rate for fine-tune')
 parser.add_argument('--seed', type=int, default=0,
                         help='random seed')
+parser.add_argument('--lam_delta', type=float, default=1.0,
+                        help='hyperparameter for delta dictionary')
 args = parser.parse_args()
 
 
@@ -109,55 +112,24 @@ dset_loaders["test"] = torch.utils.data.DataLoader(dsets["test"], batch_size=bat
 dset_sizes = {x: len(dsets[x]) for x in ['train', 'val','test']}
 # device = torch.device('cuda')
 
-from sklearn.decomposition._nmf import _initialize_nmf
-def sparse(Y,M,mu,lamda,iterations):
-    with torch.no_grad():
-      rank=M.shape[1]
-      features=Y.shape[1]
-      loss=[]
-      # A=(torch.zeros(rank,features)).cuda()
-      A=(torch.rand(rank,features)).cuda()
-    for i in range(0,iterations):
-        A = A*torch.matmul(M.T,Y)/(torch.matmul(M.T,M.mm(A))+lamda*torch.ones(rank,features).cuda()+mu*A)
-        A[A < 1e-5] = 0
-        # A = A/torch.norm(A,p=2)
-        res=Y-torch.matmul(M,A)
-        loss.append(torch.norm(res,p=2).detach().cpu())
-    return res,M,A,np.array(loss)
-
-def nmf_mu(Y,rank,mu,lamda,iterations,M1=None):
-    with torch.no_grad():
-      features=Y.shape[1]
-      batch=Y.shape[0]
-      if M1 is None:
-        M1, A1 = _initialize_nmf(Y.data.cpu().numpy(), rank, init='random')
-        M=torch.from_numpy(M1).cuda()
-        A=torch.from_numpy(A1).cuda()
-      else:
-        _, A1 = _initialize_nmf(Y.data.cpu().numpy(), rank, init='random')
-        M=torch.nn.Parameter(M1).cuda()
-        A=torch.from_numpy(A1).cuda()
-      loss=[]
-      # while torch.norm(Y-M.mm(A),p='fro')>2.9:
-    for i in range(0,iterations):
-        M = M* ((Y.mm(A.T))/(torch.matmul(M,A.mm(A.T))+mu*M))
-        M[M < 1e-16] = 1e-16
-        A = A*torch.matmul(M.T,Y)/(torch.matmul(M.T,M.mm(A))+lamda*torch.ones(rank,features).cuda())
-        res=Y-torch.matmul(M,A)
-        loss.append(torch.norm(res,p=2).detach().cpu())
-    return np.array(loss),res,M,A,M.data
-
 def match_nmf_v3(Feature_s, Feature_t):
-    _,res1,b_s,A_s,R_s=nmf_mu(Feature_s.T,18,0,0,100)
-    loss,res2,b_t,A_t,R_t=nmf_mu(Feature_t.T,18,0,0,100)
+    _,res1,b_s,A_s,R_s=loss.nmf_mu(Feature_s.T,18,0,0,100)
+    loss,res2,b_t,A_t,R_t=loss.nmf_mu(Feature_t.T,18,0,0,100)
     # print(torch.norm(b_s,p=2))
     # plt.plot(loss)
-    res_s,_,aa,_=sparse(b_s,b_t,0,0,100)
-    res_t,_,_,loss=sparse(b_t,b_s,0,0,100)
+    res_s,_,aa,_=loss.sparse(b_s,b_t,0,0,100)
+    res_t,_,_,loss=loss.sparse(b_t,b_s,0,0,100)
     # plt.plot(loss)
     # print(aa)
     return torch.norm(res_s,p='fro')+torch.norm(res_t,p='fro')
-
+  
+def match_nmf_v5(Feature_s, Feature_t):
+  b_s,A_s,error_s,loss_s=loss.dictionary_learning(50,Feature_s.t(),rank=18,lambda_sp=0.9,lambda_reg=1,lamda = 0.1)
+  coeffs1,loss= loss.ista(Feature_t,b_s,alpha=0.4,maxiter=50)
+  # plt.plot(loss)
+  res_s=Feature_t.T-b_s.mm(coeffs1.T)
+  delta=res_s.mm(coeffs1.mm(torch.linalg.pinv(args.lam_delta*torch.ones(18,18).cuda()+coeffs1.T.mm(coeffs1))))
+  return torch.norm(delta,p='fro')
 
 def Regression_test(loader, model):
     MSE = [0, 0, 0]
