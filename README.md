@@ -1,5 +1,5 @@
-# Domain Adaptation using NMF
-Code release for Non-negative Subspace Alignment for Domain Adaptation Regression
+# Domain Adaptation in Regression by Aligning Non-negative Decompositions
+
 
 
 ## Dataset:
