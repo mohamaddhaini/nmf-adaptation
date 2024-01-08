@@ -14,6 +14,7 @@ dSprites can be downloaded here:
 
 ## Citation
 If you find this work useful for your research, please cite:
+
 @inproceedings{dhaini2022adaptation,
 title={Adaptation de domaine en r{'e}gression par alignement de d{'e}compositions non-n{'e}gatives},
 author={Dhaini, Mohamad and Berar, Maxime and Honeine, Paul and van Exem, Antonin},
