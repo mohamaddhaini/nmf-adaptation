@@ -15,9 +15,4 @@ dSprites can be downloaded here:
 ## Citation
 If you find this work useful for your research, please cite:
 
-@inproceedings{dhaini2022adaptation,
-title={Adaptation de domaine en r{'e}gression par alignement de d{'e}compositions non-n{'e}gatives},
-author={Dhaini, Mohamad and Berar, Maxime and Honeine, Paul and van Exem, Antonin},
-booktitle={28-{`e}me Colloque GRETSI sur le Traitement du Signal et des Images},
-year={2022}
-}
+Dhaini, Mohamad, et al. "Adaptation de domaine en régression par alignement de décompositions non-négatives." 28-ème Colloque GRETSI sur le Traitement du Signal et des Images. 2022.
