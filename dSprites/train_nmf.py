@@ -1,3 +1,4 @@
+"""Training script for matching dSprites domains via NMF regularization."""
 import torch
 import torch.optim as optim
 import torch.nn.functional as F
@@ -16,7 +17,6 @@ torch.set_num_threads(1)
 from read_data import ImageList_r as ImageList
 import matplotlib.pyplot as plt 
 import random
-#%%
 os.chdir(r'path_to_data')
 
 torch.backends.cudnn.deterministic = True
@@ -25,6 +25,7 @@ torch.backends.cudnn.benchmark = False
 torch.manual_seed(0)
 np.random.seed(0)
 def set_seed():
+    """Force deterministic behavior for reproducible experiments."""
     torch.manual_seed(3)
     torch.cuda.manual_seed_all(3)
     torch.backends.cudnn.deterministic = True
@@ -69,37 +70,26 @@ dset_loaders["test"] = torch.utils.data.DataLoader(dsets["test"], batch_size=bat
                                                    shuffle=False, num_workers=0)
 
 dset_sizes = {x: len(dsets[x]) for x in ['train', 'val','test']}
-# device = torch.device('cuda')
-#%%
-def set_seed():
-    torch.manual_seed(3)
-    torch.cuda.manual_seed_all(3)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
-    np.random.seed(3)
-    random.seed(3)
-    os.environ['PYTHONHASHSEED'] = str(3)
 
 set_seed()
 
 
-
 def sparse(Y,M,mu,lamda,iterations):
+    """Perform sparse coding by alternating multiplicative updates."""
     with torch.no_grad():
       rank=M.shape[1]
       features=Y.shape[1]
       loss=[]
-      # A=(torch.zeros(rank,features)).cuda()
       A=(torch.rand(rank,features)).cuda()
     for i in range(0,iterations):
         A = A*torch.matmul(M.T,Y)/(torch.matmul(M.T,M.mm(A))+lamda*torch.ones(rank,features).cuda()+mu*A)
         A[A < 1e-5] = 0
-        # A = A/torch.norm(A,p=2)
         res=Y-torch.matmul(M,A)
         loss.append(torch.norm(res,p=2).detach().cpu())
     return res,M,A,np.array(loss)
 
 def nmf_mu(Y,rank,mu,lamda,iterations,M1=None):
+    """Compute non-negative matrix factorization with multiplicative updates."""
     with torch.no_grad():
       features=Y.shape[1]
       batch=Y.shape[0]
@@ -112,7 +102,6 @@ def nmf_mu(Y,rank,mu,lamda,iterations,M1=None):
         M=torch.nn.Parameter(M1).cuda()
         A=torch.from_numpy(A1).cuda()
       loss=[]
-      # while torch.norm(Y-M.mm(A),p='fro')>2.9:
     for i in range(0,iterations):
         M = M* ((Y.mm(A.T))/(torch.matmul(M,A.mm(A.T))+mu*M))
         M[M < 1e-16] = 1e-16
@@ -122,6 +111,7 @@ def nmf_mu(Y,rank,mu,lamda,iterations,M1=None):
     return np.array(loss),res,M,A,M.data
 
 def match_nmf(Feature_s, Feature_t):
+    """Compute the discrepancy between source and target features via NMF."""
     _,res1,b_s,A_s,R_s=nmf_mu(Feature_s.T,18,0,0,100)
     loss,res2,b_t,A_t,R_t=nmf_mu(Feature_t.T,18,0,0,100)
     res_s,_,aa,_=sparse(b_s,b_t,0,0,100)
@@ -129,6 +119,7 @@ def match_nmf(Feature_s, Feature_t):
     return torch.norm(res_s,p='fro')+torch.norm(res_t,p='fro')
 
 def Regression_test(loader, model):
+    """Evaluate the regression model on the held-out test split."""
     MSE = [0, 0, 0, 0]
     MAE = [0, 0, 0, 0]
     number = 0
@@ -164,6 +155,7 @@ def Regression_test(loader, model):
     return MAE[3]
 
 def inv_lr_scheduler(param_lr, optimizer, iter_num, gamma, power, init_lr=0.001, weight_decay=0.0005):
+    """Inverse learning rate schedule used by the training loop."""
     lr = init_lr * (1 + gamma * iter_num) ** (-power)
     i = 0
     for param_group in optimizer.param_groups:
@@ -173,7 +165,10 @@ def inv_lr_scheduler(param_lr, optimizer, iter_num, gamma, power, init_lr=0.001,
     return optimizer
 
 class Model_Regression(nn.Module):
+    """Regression head on top of a ResNet-18 feature extractor."""
+
     def __init__(self):
+        """Initialize the feature extractor, regression head, and prediction graph."""
         super(Model_Regression,self).__init__()
         self.model_fc = model.Resnet18Fc()
         self.classifier_layer = nn.Linear(512, 3)
@@ -182,6 +177,7 @@ class Model_Regression(nn.Module):
         self.classifier_layer = nn.Sequential(self.classifier_layer,  nn.Sigmoid())
         self.predict_layer = nn.Sequential(self.model_fc,self.classifier_layer)
     def forward(self,x):
+        """Return both predictions and the intermediate feature representation."""
         feature = self.model_fc(x)
         outC= self.classifier_layer(feature)
         return(outC,feature)

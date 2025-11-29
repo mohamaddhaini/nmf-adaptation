@@ -1,3 +1,4 @@
+"""Feature extractor backbones with the last classifier removed for regression."""
 import torch
 import torch.nn as nn
 from torchvision import models
@@ -5,6 +6,8 @@ from torch.nn import Parameter
 
 
 class AlexnetFc(nn.Module):
+    """AlexNet truncated before the final classifier."""
+
     def __init__(self):
         super(AlexnetFc, self).__init__()
         model_alexnet = models.alexnet(pretrained=True)
@@ -15,16 +18,20 @@ class AlexnetFc(nn.Module):
         self.__in_features = model_alexnet.classifier[6].in_features
 
     def forward(self, x):
+        """Return the penultimate AlexNet activations."""
         x = self.features(x)
         x = x.view(x.size(0), 256 * 6 * 6)
         x = self.classifier(x)
         return x
 
     def output_num(self):
+        """Dimension of the extracted feature vector."""
         return self.__in_features
 
 
 class Resnet18Fc(nn.Module):
+    """ResNet-18 backbone that exposes pooled features."""
+
     def __init__(self):
         super(Resnet18Fc, self).__init__()
         model_resnet18 = models.resnet18(pretrained=True)
@@ -40,6 +47,7 @@ class Resnet18Fc(nn.Module):
         self.__in_features = model_resnet18.fc.in_features
 
     def forward(self, x):
+        """Run a forward pass that stops before the fully-connected head."""
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -53,10 +61,13 @@ class Resnet18Fc(nn.Module):
         return x
 
     def output_num(self):
+        """Dimension of the extracted feature vector."""
         return self.__in_features
 
 
 class Resnet34Fc(nn.Module):
+    """ResNet-34 backbone that exposes pooled features."""
+
     def __init__(self):
         super(Resnet34Fc, self).__init__()
         model_resnet34 = models.resnet34(pretrained=True)
@@ -72,6 +83,7 @@ class Resnet34Fc(nn.Module):
         self.__in_features = model_resnet34.fc.in_features
 
     def forward(self, x):
+        """Run a forward pass that stops before the fully-connected head."""
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -85,10 +97,13 @@ class Resnet34Fc(nn.Module):
         return x
 
     def output_num(self):
+        """Dimension of the extracted feature vector."""
         return self.__in_features
 
 
 class Resnet50Fc(nn.Module):
+    """ResNet-50 backbone that exposes pooled features."""
+
     def __init__(self):
         super(Resnet50Fc, self).__init__()
         model_resnet50 = models.resnet50(pretrained=True)
@@ -104,6 +119,7 @@ class Resnet50Fc(nn.Module):
         self.__in_features = model_resnet50.fc.in_features
 
     def forward(self, x):
+        """Run a forward pass that stops before the fully-connected head."""
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -117,10 +133,13 @@ class Resnet50Fc(nn.Module):
         return x
 
     def output_num(self):
+        """Dimension of the extracted feature vector."""
         return self.__in_features
 
 
 class Resnet101Fc(nn.Module):
+    """ResNet-101 backbone that exposes pooled features."""
+
     def __init__(self):
         super(Resnet101Fc, self).__init__()
         model_resnet101 = models.resnet101(pretrained=True)
@@ -136,6 +155,7 @@ class Resnet101Fc(nn.Module):
         self.__in_features = model_resnet101.fc.in_features
 
     def forward(self, x):
+        """Run a forward pass that stops before the fully-connected head."""
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -149,10 +169,13 @@ class Resnet101Fc(nn.Module):
         return x
 
     def output_num(self):
+        """Dimension of the extracted feature vector."""
         return self.__in_features
 
 
 class Resnet152Fc(nn.Module):
+    """ResNet-152 backbone that exposes pooled features."""
+
     def __init__(self):
         super(Resnet152Fc, self).__init__()
         model_resnet152 = models.resnet152(pretrained=True)
@@ -168,6 +191,7 @@ class Resnet152Fc(nn.Module):
         self.__in_features = model_resnet152.fc.in_features
 
     def forward(self, x):
+        """Run a forward pass that stops before the fully-connected head."""
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)
@@ -181,4 +205,5 @@ class Resnet152Fc(nn.Module):
         return x
 
     def output_num(self):
+        """Dimension of the extracted feature vector."""
         return self.__in_features

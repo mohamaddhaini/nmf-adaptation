@@ -1,5 +1,5 @@
 
-
+"""Utility helpers for loading dSprites data for domain adaptation experiments."""
 import torch
 import numpy as np
 from sklearn.preprocessing import StandardScaler
@@ -9,7 +9,10 @@ from PIL import Image
 
 
 class TextData():
+    """Iterable dataset that yields mixed source/target batches with labels."""
+
     def __init__(self, text_file, label_file, source_batch_size=64, target_batch_size=64, val_batch_size=4):
+        """Load the serialized arrays and initialize the batch sampling state."""
         all_text = np.load(text_file)
         self.source_text = all_text[0:92664, :]
         self.target_text = all_text[92664:, :]
@@ -34,6 +37,7 @@ class TextData():
         self.feature_dim = self.source_text.shape[1]
 
     def next_batch(self, train=True):
+        """Return the next batch of standardized features and labels."""
         data = []
         label = []
         if train:
@@ -60,19 +64,15 @@ class TextData():
             if remaining <= self.target_batch_size:
                 for i in self.target_list[start:]:
                     data.append(self.target_text[i, :])
-                    # no target label
-                    # label.append(self.label_target[i, :])
                     self.target_id += 1
                 self.target_list = random.sample(range(self.target_size), self.target_size)
                 self.target_id = 0
                 for i in self.target_list[0:self.target_batch_size - remaining]:
                     data.append(self.target_text[i, :])
-                    # label.append(self.label_target[i, :])
                     self.target_id += 1
             else:
                 for i in self.target_list[start:start + self.target_batch_size]:
                     data.append(self.target_text[i, :])
-                    # label.append(self.label_target[i, :])
                     self.target_id += 1
         else:
             remaining = self.val_size - self.val_id
@@ -99,6 +99,7 @@ class TextData():
 
 
 def make_dataset(image_list, labels):
+    """Create (path, label) tuples with discrete integer targets."""
     if labels:
         len_ = len(image_list)
         images = [(image_list[i].strip(), labels[i, :]) for i in xrange(len_)]
@@ -111,6 +112,7 @@ def make_dataset(image_list, labels):
 
 
 def make_dataset_r(image_list, labels):
+    """Create (path, label) tuples with regression targets."""
     if labels:
         len_ = len(image_list)
         images = [(image_list[i].strip(), labels[i, :]) for i in xrange(len_)]
@@ -122,68 +124,42 @@ def make_dataset_r(image_list, labels):
     return images
 
 def pil_loader(path):
-    # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
+    """Load an RGB PIL image from disk."""
     with open(path, 'rb') as f:
         with Image.open(f) as img:
             return img.convert('RGB')
 
 def pil_loader1(path):
-    # open path as file to avoid ResourceWarning (https://github.com/python-pillow/Pillow/issues/835)
+    """Load a grayscale PIL image from disk."""
     with open(path, 'rb') as f:
         with Image.open(f) as img:
             return img.convert('L')
 
 def accimage_loader(path):
+    """Attempt to load images with accimage, falling back to PIL if needed."""
     import accimage
     try:
         return accimage.Image(path)
     except IOError:
-        # Potentially a decoding problem, fall back to PIL.Image
         return pil_loader(path)
 
 
 def default_loader(path):
-    # from torchvision import get_image_backend
-    # if get_image_backend() == 'accimage':
-    #    return accimage_loader(path)
-    # else:
+    """Default RGB loader that currently wraps PIL."""
     return pil_loader(path)
 
 def default_loader1(path):
-    # from torchvision import get_image_backend
-    # if get_image_backend() == 'accimage':
-    #    return accimage_loader(path)
-    # else:
+    """Default grayscale loader that currently wraps PIL."""
     return pil_loader1(path)
 
 class ImageList(object):
-    """A generic data loader where the images are arranged in this way: ::
-        root/dog/xxx.png
-        root/dog/xxy.png
-        root/dog/xxz.png
-        root/cat/123.png
-        root/cat/nsdf3.png
-        root/cat/asd932_.png
-    Args:
-        root (string): Root directory path.
-        transform (callable, optional): A function/transform that  takes in an PIL image
-            and returns a transformed version. E.g, ``transforms.RandomCrop``
-        target_transform (callable, optional): A function/transform that takes in the
-            target and transforms it.
-        loader (callable, optional): A function to load an image given its path.
-     Attributes:
-        classes (list): List of the class names.
-        class_to_idx (dict): Dict with items (class_name, class_index).
-        imgs (list): List of (image path, class_index) tuples
-    """
-
+    """Simple image dataset abstraction holding file paths and discrete labels."""
     def __init__(self, image_list, labels=None, transform=None, target_transform=None,
                  loader=default_loader):
+        """Store the file/label pairs plus the transforms to apply."""
         imgs = make_dataset(image_list, labels)
         if len(imgs) == 0:
-            raise (RuntimeError("Found 0 images in subfolders of: " + root + "\n"
-                                                                             "Supported image extensions are: " + ",".join(
-                IMG_EXTENSIONS)))
+            raise RuntimeError("Found 0 images. Please provide at least one labeled path.")
 
         self.imgs = imgs
         self.transform = transform
@@ -191,12 +167,7 @@ class ImageList(object):
         self.loader = loader
 
     def __getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-        Returns:
-            tuple: (image, target) where target is class_index of the target class.
-        """
+        """Return the transformed image and target for the provided index."""
         path, target = self.imgs[index]
         img = self.loader(path)
         if self.transform is not None:
@@ -207,36 +178,18 @@ class ImageList(object):
         return img, target
 
     def __len__(self):
+        """Length of the source dataset."""
         return len(self.imgs)
 
 class ImageList_r(object):
-    """A generic data loader where the images are arranged in this way: ::
-        root/dog/xxx.png
-        root/dog/xxy.png
-        root/dog/xxz.png
-        root/cat/123.png
-        root/cat/nsdf3.png
-        root/cat/asd932_.png
-    Args:
-        root (string): Root directory path.
-        transform (callable, optional): A function/transform that  takes in an PIL image
-            and returns a transformed version. E.g, ``transforms.RandomCrop``
-        target_transform (callable, optional): A function/transform that takes in the
-            target and transforms it.
-        loader (callable, optional): A function to load an image given its path.
-     Attributes:
-        classes (list): List of the class names.
-        class_to_idx (dict): Dict with items (class_name, class_index).
-        imgs (list): List of (image path, class_index) tuples
-    """
+    """Image dataset variant that expects regression labels."""
 
     def __init__(self, image_list, labels=None, transform=None, target_transform=None,
                  loader=default_loader):
+        """Store the file/label pairs plus the transforms to apply."""
         imgs = make_dataset_r(image_list, labels)
         if len(imgs) == 0:
-            raise (RuntimeError("Found 0 images in subfolders of: " + root + "\n"
-                                                                             "Supported image extensions are: " + ",".join(
-                IMG_EXTENSIONS)))
+            raise RuntimeError("Found 0 images. Please provide at least one labeled path.")
 
         self.imgs = imgs
         self.transform = transform
@@ -244,12 +197,7 @@ class ImageList_r(object):
         self.loader = loader
 
     def __getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-        Returns:
-            tuple: (image, target) where target is class_index of the target class.
-        """
+        """Return the transformed image and regression target for the provided index."""
         path, target = self.imgs[index]
         img = self.loader(path)
         if self.transform is not None:
@@ -260,10 +208,12 @@ class ImageList_r(object):
         return img, target
 
     def __len__(self):
+        """Length of the regression dataset."""
         return len(self.imgs)
 
 
 def ClassSamplingImageList(image_list, transform, return_keys=False):
+    """Group image paths by class id and wrap each group in an ImageList."""
     data = open(image_list).readlines()
     label_dict = {}
     for line in data:
